@@ -39,18 +39,54 @@ from common import *
 # Include cse 351 common Python files
 from cse351 import *
 
+CHAR = 'characters'
+PLAN = 'planets'
+STAR = 'starships'
+VEH = 'vehicles'
+SPEC = 'species'
+
 # global
 call_count = 0
 
-def get_urls(film6, kind):
-    global call_count
+results = {}            # <type, [names]>
 
-    urls = film6[kind]
-    print(kind)
-    for url in urls:
+class GetUrl(threading.Thread):
+
+    def __init__(self, kind, url):
+        threading.Thread.__init__(self)
+        self.kind = kind
+        self.url = url
+        self.name = ''
+
+    def get_name(self):
+        return self.name
+
+    def run(self):
+        item = get_data_from_server(self.url)
+        self.name = item['name']
+
+
+def get_urls(urls):
+    global call_count
+    global results
+
+    threads = []
+    for kind, url in urls:
+        t = GetUrl(kind, url)
         call_count += 1
-        item = get_data_from_server(url)
-        print(f'  - {item['name']}')
+        t.start()
+        threads.append(t)
+    
+    for t in threads:
+        t.join()
+
+    for t in threads:
+        kind = t.kind
+        if kind not in results:
+            results[kind] = [t.get_name()]
+        else:
+            results[kind].append(t.get_name())
+
 
 def main():
     global call_count
@@ -60,14 +96,27 @@ def main():
 
     film6 = get_data_from_server(f'{TOP_API_URL}/films/6')
     call_count += 1
-    print_dict(film6)
+    # print_dict(film6)
 
-    # Retrieve people
-    get_urls(film6, 'characters')
-    get_urls(film6, 'planets')
-    get_urls(film6, 'starships')
-    get_urls(film6, 'vehicles')
-    get_urls(film6, 'species')
+    all_urls = []           # list of tuples (type, url)
+
+    # Retrieve all
+    def _add_urls(t, all_urls, urls):
+        for url in urls:
+            all_urls.append((t, url))
+
+    _add_urls(CHAR, all_urls, film6['characters'])
+    _add_urls(PLAN, all_urls, film6['planets'])
+    _add_urls(STAR, all_urls, film6['starships'])
+    _add_urls(VEH,  all_urls, film6['vehicles'])
+    _add_urls(SPEC, all_urls, film6['species'])
+
+    get_urls(all_urls)
+
+    for kind, names in results.items():
+        print(kind)
+        for name in names:
+            print(f'  - {name}')
 
     log.stop_timer('Total Time To complete')
     log.write(f'There were {call_count} calls to the server')
