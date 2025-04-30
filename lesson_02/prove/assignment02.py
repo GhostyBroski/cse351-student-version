@@ -1,7 +1,7 @@
 """
 Course    : CSE 351
 Assignment: 02
-Student   : <your name here>
+Student   : Ash Jones (It might show as Kyle Jones in the system, but I go by Ash)
 
 Instructions:
     - review instructions in the course
@@ -32,6 +32,18 @@ def main():
     bank = Bank()
 
     # TODO - Add a ATM_Reader for each data file
+     # Create a list of threads
+    threads = []
+    
+    # Add an ATM_Reader for each data file, and start the thread
+    for data_file in data_files:
+        atm_reader = ATM_Reader(data_file, bank)
+        threads.append(atm_reader)
+        atm_reader.start()
+
+    # Wait for all threads to finish
+    for thread in threads:
+        thread.join()
 
     test_balances(bank)
 
@@ -39,21 +51,99 @@ def main():
 
 
 # ===========================================================================
-class ATM_Reader():
-    # TODO - implement this class here
-    ...
+class ATM_Reader(threading.Thread):
+    def __init__(self, filename, bank):
+        threading.Thread.__init__(self)
+        self.filename = filename
+        self.bank = bank
+
+    def run(self):
+        try:
+            print(f"Thread starting: {self.filename}")
+            with open(self.filename, 'r') as file:
+                print(f"File opened: {self.filename}")
+                for line in file:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue  # Skip empty lines and comments
+                    try:
+                        account_number, trans_type, amount = line.split(',')
+                        account_number = int(account_number)
+                        amount = float(amount)
+                        if trans_type == 'd':
+                            self.bank.deposit(account_number, amount)
+                        elif trans_type == 'w':
+                            self.bank.withdraw(account_number, amount)
+                        else:
+                            print(f"Unknown transaction type '{trans_type}' in file {self.filename}")
+                    except ValueError as e:
+                        print(f"Skipping bad line in {self.filename}: {line}")
+            print(f"Thread finished: {self.filename}")
+        except Exception as e:
+            print(f"Error processing {self.filename}: {e}")
 
 
 # ===========================================================================
 class Account():
     # TODO - implement this class here
-    ...
+    def __init__(self, account_number):
+        self.account_number = account_number
+        self.lock = threading.Lock()
+        self.balance = 0.0
+
+    def deposit(self, amount):
+        """Deposit amount into the account."""
+        with self.lock:
+            self.balance += amount
+
+    def withdraw(self, amount):
+        """Withdraw amount from the account, ensuring sufficient funds."""
+        with self.lock:
+            self.balance -= amount
+
+    def get_balance(self):
+        """Return the account's balance."""
+        return self.balance
 
 
 # ===========================================================================
 class Bank():
     # TODO - implement this class here
-    ...
+    def __init__(self):
+        self.accounts = {}
+        self.lock = threading.RLock()  # Lock for thread-safe access to accounts
+
+    def get_account(self, account_number):
+        """Get an account by account number, creating it if necessary."""
+        with self.lock:  # Ensure thread-safety when accessing accounts
+            if account_number not in self.accounts:
+                self.accounts[account_number] = Account(account_number)
+            return self.accounts[account_number]
+
+    def deposit(self, account_number, amount):
+        """Deposit an amount into the given account."""
+        with self.lock:  # Thread-safe deposit
+            account = self.get_account(account_number)
+            account.deposit(amount)
+
+    def withdraw(self, account_number, amount):
+        """Withdraw an amount from the given account."""
+        with self.lock:  # Thread-safe withdrawal
+            account = self.get_account(account_number)
+            account.withdraw(amount)
+
+    def get_balance(self, account_number):
+        """Get the balance of a given account as a Money object."""
+        with self.lock:
+            account = self.get_account(account_number)
+            cents = account.get_balance()  # returns int (e.g., 6155758)
+            dollars = cents / 100      # convert to dollars (float)
+            return Money(str(f"{dollars:.4f}"))     # Money expects a string input
+        
+    def get_balances(self):
+        """Return a list of balances for all accounts, formatted as strings."""
+        with self.lock:
+            return [f"{account.get_balance():.2f}" for account in self.accounts]
 
 
 # ---------------------------------------------------------------------------
