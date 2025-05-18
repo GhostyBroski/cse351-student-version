@@ -309,4 +309,3 @@ if __name__ == '__main__':
     server = ThreadingSimpleServer((hostName, serverPort), Handler)
     print(f'Starting server.  Waiting on {hostName}:{serverPort}, use <Ctrl-C> or <Command-C> to stop')
     server.serve_forever()
-

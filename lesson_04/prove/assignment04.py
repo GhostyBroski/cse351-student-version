@@ -1,30 +1,67 @@
 """
 Course    : CSE 351
 Assignment: 04
-Student   : <your name here>
+Student   : Ash Jones
 
 Instructions:
     - review instructions in the course
+
+In order to retrieve a weather record from the server, Use the URL:
+
+f'{TOP_API_URL}/record/{name}/{recno}
+
+where:
+
+name: name of the city
+recno: record number starting from 0
+
 """
 
 import time
+from queue import Queue
 from common import *
 
 from cse351 import *
 
-THREADS = 0                 # TODO - set for your program
+THREADS = 250                # TODO - set for your program
 WORKERS = 10
 RECORDS_TO_RETRIEVE = 5000  # Don't change
 
 
 # ---------------------------------------------------------------------------
-def retrieve_weather_data():
+def retrieve_weather_data(command_queue, data_queue):
     # TODO - fill out this thread function (and arguments)
-    ...
+    while True:
+        item = command_queue.get()
+        if item == "DONE":
+            command_queue.task_done()
+            break
+        city, recno = item
+        result = get_data_from_server(f"{TOP_API_URL}/record/{city}/{recno}")
+        
+        date = result["date"]
+        temp = result["temp"]
+        data_queue.put((city, date, temp))
+        command_queue.task_done()
 
 
 # ---------------------------------------------------------------------------
 # TODO - Create Worker threaded class
+class Worker(threading.Thread):
+    def __init__(self, data_queue, noaa):
+        super().__init__()
+        self.data_queue = data_queue
+        self.noaa = noaa
+
+    def run(self):
+        while True:
+            item = self.data_queue.get()
+            if item == "DONE":
+                self.data_queue.task_done()
+                break
+            city, date, temp = item
+            self.noaa.store(city, date, temp)
+            self.data_queue.task_done()
 
 
 # ---------------------------------------------------------------------------
@@ -32,10 +69,21 @@ def retrieve_weather_data():
 class NOAA:
 
     def __init__(self):
-        ...
+        self.data = {}
+        self.lock = threading.Lock()
+
+    def store(self, city, date, temp):
+        with self.lock:
+            if city not in self.data:
+                self.data[city] = []
+            self.data[city].append((date, temp))
 
     def get_temp_details(self, city):
-        return 0.0
+        records = self.data.get(city, [])
+        if not records:
+            return 0.0
+        total = sum(temp for date, temp in records)
+        return round(total / len(records), 4)
 
 
 # ---------------------------------------------------------------------------
@@ -62,7 +110,7 @@ def verify_noaa_results(noaa):
         avg = noaa.get_temp_details(name)
 
         if abs(avg - answer) > 0.00001:
-            msg = f'FAILED  Excepted {answer}'
+            msg = f'FAILED  Expected {answer}'
         else:
             msg = f'PASSED'
         print(f'{name:>15}: {avg:<10} {msg}')
@@ -95,8 +143,45 @@ def main():
 
     # TODO - Create any queues, pipes, locks, barriers you need
 
+    print(" ")
 
+    # Create queues
+    command_queue = Queue(maxsize=10)
+    data_queue = Queue(maxsize=10)
 
+    # Start fetcher threads
+    threads = []
+    for _ in range(THREADS):
+        t = threading.Thread(target=retrieve_weather_data, args=(command_queue, data_queue))
+        t.start()
+        threads.append(t)
+
+    # Start worker threads
+    workers = []
+    for _ in range(WORKERS):
+        w = Worker(data_queue, noaa)
+        w.start()
+        workers.append(w)
+
+    # Fill the command queue with tasks
+    for city in CITIES:
+        for i in range(RECORDS_TO_RETRIEVE):
+            command_queue.put((city, i))
+
+    # Wait for queues to finish
+    command_queue.join()
+    data_queue.join()
+
+    # Send stop signals to fetchers and workers
+    for _ in range(THREADS):
+        command_queue.put("DONE")
+    for t in threads:
+        t.join()
+
+    for _ in range(WORKERS):
+        data_queue.put("DONE")
+    for w in workers:
+        w.join()
 
     # End server - don't change below
     data = get_data_from_server(f'{TOP_API_URL}/end')
@@ -109,4 +194,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
