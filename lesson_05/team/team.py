@@ -2,7 +2,7 @@
 Course: CSE 351
 Lesson: L05 Team Activity
 File:   team.py
-Author: <Add name here>
+Author: Ash Jones
 Purpose: Find prime numbers
 
 Instructions:
