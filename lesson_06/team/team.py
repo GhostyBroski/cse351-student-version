@@ -45,6 +45,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
 class Board():
 
     SIZE = 25
@@ -56,7 +57,7 @@ class Board():
         (-1, 1),  # SW
         (-1, 0),  # W
         (-1, -1), # NW
-        (0, -1),  # N
+        (0, -1),   # N
         (1, -1)   # NE
     )
 
@@ -121,27 +122,53 @@ class Board():
     def _word_at_this_location(self, row, col, direction, word):
         """ Helper function: is the word found on the board at (x, y) in a direction """
         dir_x, dir_y = self.directions[direction]
-        highlight_copy = copy.deepcopy(self.highlighting)
+
+        # STEP 3: Use a list of tuples to keep track of the letters that are highlighted.
+        #         Don't use deepcopy()
+        changes = []
+
         for letter in word:
             board_letter = self.get_letter(row, col)
             if board_letter == letter:
-                self.highlight(row, col)
+                changes.append((row, col))
                 row += dir_x
                 col += dir_y
             else:
-                self.highlighting = copy.deepcopy(highlight_copy)
                 return False
+
+        # Highlight the found word
+        for r, c in changes:
+            self.highlight(r, c)
+
         return True
 
+
     def find_word(self, word):
-        """ Find a word in the board """
+        """ Find a word in the board using the dictionary lookup"""
         print(f'Finding {word}...')
-        for row in range(self.size):
-            for col in range(self.size):
-                for d in range(0, 8):
-                    if self._word_at_this_location(row, col, d, word):
-                        return True
+
+        # STEP 2: Use the lookup dictionary to just process the letters that are on the board
+        #         that match the first letter of the word
+
+        for row, col in self.lookup[word[0]]:
+            for d in range(0, 8):
+                if self._word_at_this_location(row, col, d, word):
+                    return True
         return False
+
+
+    # STEP 1: Create a lookup dictionary for the letters on the board
+    #         The dictionary should be letter -> [(row, col), (row, col), ...]
+
+    def create_lookup_dict(self):
+        # create lookup dictionary (letter -> [])
+        self.lookup = {letter:[] for letter in string.ascii_uppercase}
+
+        [ self.lookup[self.board[row][col]].append((row, col)) 
+            for row in range(self.size) 
+            for col in range(self.size) ]
+                
+        # print(self.lookup)
 
 
 def main():
@@ -149,10 +176,13 @@ def main():
     board.display()
 
     start = time.perf_counter()
+
+    # create lookup dict for letters locations on the board
+    board.create_lookup_dict()
+
     for word in words:
         if not board.find_word(word):
             print(f'Error: Could not find "{word}"')
-    
     total_time = time.perf_counter() - start
 
     board.display()
