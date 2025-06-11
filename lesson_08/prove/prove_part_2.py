@@ -2,7 +2,7 @@
 Course: CSE 351 
 Assignment: 08 Prove Part 2
 File:   prove_part_2.py
-Author: <Add name here>
+Author: Ash Jones
 
 Purpose: Part 2 of assignment 8, finding the path to the end of a maze using recursion.
 
