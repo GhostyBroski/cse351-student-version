@@ -21,11 +21,11 @@ position:
 
 What would be your strategy?
 
-<Answer here>
+My strategy would be to highlight the found path another color altogether, doing so if it is the end_path. This could be implemented by coloring for row,col in that path by using maze.move and coloring it before stopping that maze. This could be me using the path from the final thread back, highlighting as I go.
 
 Why would it work?
 
-<Answer here>
+This would work by being able to trace back my steps so that I can highlight a path back to the start, not spurring off to a side where a thread met an end.
 
 """
 
@@ -67,6 +67,8 @@ current_color_index = 0
 thread_count = 0
 stop = False
 speed = SLOW_SPEED
+end_lock = threading.Lock()
+end_path = None
 
 def get_color():
     """ Returns a different color when called """
@@ -80,12 +82,65 @@ def get_color():
 
 # TODO: Add any function(s) you need, if any, here.
 
+def thread_dfs(maze, row, col, color, path):
+    """ Recursive DFS: continues in the current thread until a fork. 
+        At a fork, current thread takes one path and spawns threads for the rest. """
+    global stop, thread_count, end_path
+
+    while not stop and maze.can_move_here(row, col):
+        maze.move(row, col, color)
+        path.append((row, col))
+
+        if maze.at_end(row, col):
+            with end_lock:
+                if not stop:
+                    stop = True
+                    end_path = list(path)
+            return
+
+        moves = maze.get_possible_moves(row, col)
+
+        if len(moves) == 0:
+            return  # Dead end
+
+        elif len(moves) == 1:
+            # Only one way to go, continue in same thread
+            row, col = moves[0]
+            continue
+
+        else:
+            # Fork: current thread takes the first path, spawn new threads for the rest
+            threads = []
+            for i, (next_row, next_col) in enumerate(moves):
+                if i == 0:
+                    row, col = next_row, next_col  # Continue in current thread
+                else:
+                    new_color = get_color()
+                    new_path = list(path)
+                    t = threading.Thread(target=thread_dfs, args=(maze, next_row, next_col, new_color, new_path))
+                    t.start()
+                    threads.append(t)
+                    thread_count += 1
+            # After forking, the current thread just continues (loop continues)
+
+    return
+
+
 
 def solve_find_end(maze):
     """ Finds the end position using threads. Nothing is returned. """
-    # When one of the threads finds the end position, stop all of them.
-    global stop
+    global stop, end_path, thread_count
     stop = False
+    end_path = None
+    thread_count = 0
+
+    start_row, start_col = maze.get_start_pos()
+    color = get_color()
+    main_thread = threading.Thread(target=thread_dfs, args=(maze, start_row, start_col, color, []))
+    main_thread.start()
+    thread_count += 1
+    main_thread.join()
+
 
 
 
