@@ -43,17 +43,33 @@ You will lose 10% if you don't detail your part 1 and part 2 code below
 
 Describe how to speed up part 1
 
-<Add your comments here>
+I was able to speed up the depth-first search by adding multithreading to recursive implementation.
+Then instead of traversing the familly tree one branch at a time, I used a new thread for each 
+recursive call to a person's parent family. Doing this, I effectively allowed multiple generations of the tree 
+to be built in parallel. After this, I joined the threads afterward to ensure that the tree was built 
+correctly without skipping data.
 
 
 Describe how to speed up part 2
 
-<Add your comments here>
+I was able to speed up the breadth-first search by using a ThreadPoolExecutor that has a high number of 
+worker threads (50). Then, by maintaining a thread-safe queue of family IDs and using concurrent 
+threads to retrieve all family members (husband, wife, and children). To do this, parent family IDs 
+for husband and wife were enqueued for later processing, allowing the queue to grow as 
+the search progressed. This then enabled the program to fetch and process many people and 
+families at the same time, significantly reducing total runtime compared to a 
+single-threaded implementation.
 
 
 Extra (Optional) 10% Bonus to speed up part 3
 
-<Add your comments here>
+To limit the concurrency to 5 threads, I implemented a worker pool pattern with exactly 5 threads running 
+concurrently. In doing this, each worker thread repeatedly dequeues a family ID from a shared queue and fetches the 
+family and its members from the server. When a person has parent families, those family IDs are safely 
+enqueued for further processing. Locks ensure that shared data structures like the family tree and sets 
+tracking seen families and people are updated safely without race conditions. This approach maintains 
+a steady pool of 5 active threads, efficiently processing the breadth-first traversal while respecting 
+the thread limit and avoiding duplicates.
 
 """
 from common import *
@@ -193,19 +209,25 @@ def breadth_fs_pedigree_limit5(family_id, tree):
     
     """BFS with 5 concurrent threads, using a thread-safe queue"""
     q = queue.Queue()
-    lock = threading.Lock()
+    lock = Lock()
+    seen_families = set()
+    seen_people = set()
+
     q.put(family_id)
 
     def worker():
         while True:
-            try:
-                fam_id = q.get(timeout=1)
-            except queue.Empty:
-                return
+            fam_id = q.get()
 
-            if fam_id is None or tree.does_family_exist(fam_id):
+            if fam_id is None:
                 q.task_done()
-                continue
+                break
+
+            with lock:
+                if fam_id in seen_families:
+                    q.task_done()
+                    continue
+                seen_families.add(fam_id)
 
             family_data = get_data_from_server(f'{TOP_API_URL}/family/{fam_id}')
             if not family_data:
@@ -214,52 +236,53 @@ def breadth_fs_pedigree_limit5(family_id, tree):
 
             family = Family(family_data)
             with lock:
-                if not tree.does_family_exist(family.get_id()):
-                    tree.add_family(family)
+                tree.add_family(family)
 
-            # Husband
-            husband_id = family.get_husband()
-            if husband_id and not tree.does_person_exist(husband_id):
-                husband_data = get_data_from_server(f'{TOP_API_URL}/person/{husband_id}')
-                if husband_data:
-                    husband = Person(husband_data)
-                    with lock:
-                        if not tree.does_person_exist(husband.get_id()):
-                            tree.add_person(husband)
-                    q.put(husband.get_parentid())
-
-            # Wife
-            wife_id = family.get_wife()
-            if wife_id and not tree.does_person_exist(wife_id):
-                wife_data = get_data_from_server(f'{TOP_API_URL}/person/{wife_id}')
-                if wife_data:
-                    wife = Person(wife_data)
-                    with lock:
-                        if not tree.does_person_exist(wife.get_id()):
-                            tree.add_person(wife)
-                    q.put(wife.get_parentid())
-
-            # Children
+            # Fetch and add family members
+            people_to_fetch = [
+                (family.get_husband(), True),
+                (family.get_wife(), True)
+            ]
             for child_id in family.get_children():
-                if child_id and not tree.does_person_exist(child_id):
-                    child_data = get_data_from_server(f'{TOP_API_URL}/person/{child_id}')
-                    if child_data:
-                        child = Person(child_data)
+                people_to_fetch.append((child_id, False))
+
+            for person_id, add_parents in people_to_fetch:
+                if person_id is None:
+                    continue
+
+                with lock:
+                    if person_id in seen_people:
+                        continue
+                    seen_people.add(person_id)
+
+                person_data = get_data_from_server(f'{TOP_API_URL}/person/{person_id}')
+                if not person_data:
+                    continue
+
+                person = Person(person_data)
+                with lock:
+                    tree.add_person(person)
+
+                if add_parents:
+                    parent_fam_id = person.get_parentid()
+                    if parent_fam_id:
                         with lock:
-                            if not tree.does_person_exist(child.get_id()):
-                                tree.add_person(child)
+                            if parent_fam_id not in seen_families:
+                                q.put(parent_fam_id)
 
             q.task_done()
 
-    # Launch 5 threads
+    # Start exactly 5 persistent threads
     threads = []
     for _ in range(5):
-        t = threading.Thread(target=worker)
+        t = Thread(target=worker)
         t.start()
         threads.append(t)
 
-    # Wait for queue to empty
     q.join()
 
+    # Stop threads by sending sentinel values
+    for _ in threads:
+        q.put(None)
     for t in threads:
         t.join()
