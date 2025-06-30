@@ -122,6 +122,10 @@ def breadth_fs_pedigree(family_id, tree):
     # TODO - implement breadth first retrieval
     # TODO - Printing out people and families that are retrieved from the server will help debugging
     """Breadth-First Search using queue"""
+    import queue
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Lock
+
     q = queue.Queue()
     q.put(family_id)
 
@@ -152,11 +156,10 @@ def breadth_fs_pedigree(family_id, tree):
                             q.put(parent_fam_id)
 
     with ThreadPoolExecutor(max_workers=50) as executor:
-        futures = []
+        active_futures = set()
 
-        # The outer loop keeps going as long as there's work in the queue or futures
-        while not q.empty() or futures:
-            if not q.empty():
+        while not q.empty() or active_futures:
+            while not q.empty():
                 fam_id = q.get()
 
                 with lock:
@@ -172,14 +175,14 @@ def breadth_fs_pedigree(family_id, tree):
                 with lock:
                     tree.add_family(family)
 
-                # Fetch family members in threads
-                futures.append(executor.submit(fetch_person, family.get_husband(), True))
-                futures.append(executor.submit(fetch_person, family.get_wife(), True))
+                # Spawn threads to fetch people
+                active_futures.add(executor.submit(fetch_person, family.get_husband(), True))
+                active_futures.add(executor.submit(fetch_person, family.get_wife(), True))
                 for child_id in family.get_children():
-                    futures.append(executor.submit(fetch_person, child_id, False))
+                    active_futures.add(executor.submit(fetch_person, child_id, False))
 
-            # Clean up completed futures
-            futures = [f for f in futures if not f.done()]
+            # Remove completed futures
+            active_futures = {f for f in active_futures if not f.done()}
 
 # -----------------------------------------------------------------------------
 def breadth_fs_pedigree_limit5(family_id, tree):
