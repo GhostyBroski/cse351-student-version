@@ -1,0 +1,15 @@
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\bin\Debug\net8.0\Assignment11.exe
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\bin\Debug\net8.0\Assignment11.deps.json
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\bin\Debug\net8.0\Assignment11.runtimeconfig.json
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\bin\Debug\net8.0\Assignment11.dll
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\bin\Debug\net8.0\Assignment11.pdb
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\Assignment11.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\Assignment11.AssemblyInfoInputs.cache
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\Assignment11.AssemblyInfo.cs
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\Assignment11.csproj.CoreCompileInputs.cache
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\Assignment11.sourcelink.json
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\Assignment11.dll
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\refint\Assignment11.dll
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\Assignment11.pdb
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\Assignment11.genruntimeconfig.cache
+C:\Users\kylea\OneDrive\Desktop\Code Things\File Things\cse351-student-version\lesson_11\prove\Assignment11\obj\Debug\net8.0\ref\Assignment11.dll
