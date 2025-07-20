@@ -6,7 +6,7 @@ namespace Assignment14;
 public static class Solve
 {
 
-    static readonly SemaphoreSlim fetchLimiter = new(10); // limit to 10 parallel fetches
+    static readonly SemaphoreSlim fetchLimiter = new(50); // limit to 50 parallel fetches
     static readonly object treeLock = new(); // protect tree from concurrent writes
 
     private static readonly HttpClient HttpClient = new()
