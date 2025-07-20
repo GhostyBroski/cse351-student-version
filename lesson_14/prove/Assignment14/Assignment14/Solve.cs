@@ -5,6 +5,10 @@ namespace Assignment14;
 
 public static class Solve
 {
+
+    static readonly SemaphoreSlim fetchLimiter = new(10); // limit to 10 parallel fetches
+    static readonly object treeLock = new(); // protect tree from concurrent writes
+
     private static readonly HttpClient HttpClient = new()
     {
         Timeout = TimeSpan.FromSeconds(180)
@@ -41,21 +45,149 @@ public static class Solve
         var familyJson = await Solve.GetDataFromServerAsync($"{Solve.TopApiUrl}/family/{familyId}");
         return familyJson != null ? Family.FromJson(familyJson.ToString()) : null;
     }
-    
+
+    private static async Task<Person?> SafeFetchPerson(long id)
+    {
+        await fetchLimiter.WaitAsync();
+        try
+        {
+            return await FetchPersonAsync(id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching person {id}: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            fetchLimiter.Release();
+        }
+    }
+
+    private static async Task<Family?> SafeFetchFamily(long id)
+    {
+        await fetchLimiter.WaitAsync();
+        try
+        {
+            return await FetchFamilyAsync(id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching family {id}: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            fetchLimiter.Release();
+        }
+    }
+
+
     // =======================================================================================================
     public static async Task<bool> DepthFS(long familyId, Tree tree)
     {
         // Note: invalid IDs are zero not null
 
-        // TODO - add you solution here
+        if (familyId == 0 || tree.GetFamily(familyId) != null)
+            return true;
+
+        var family = await SafeFetchFamily(familyId);
+        if (family == null) return false;
+
+        lock (treeLock)
+        {
+            tree.AddFamily(family);
+        }
+
+        var tasks = new List<Task>();
+
+        async Task HandlePerson(long id, bool addParent)
+        {
+            if (id == 0 || tree.GetPerson(id) != null) return;
+            var person = await SafeFetchPerson(id);
+            if (person == null) return;
+
+            lock (treeLock)
+            {
+                tree.AddPerson(person);
+            }
+
+            if (addParent)
+                await DepthFS(person.ParentId, tree);
+        }
+
+        tasks.Add(HandlePerson(family.HusbandId, true));
+        tasks.Add(HandlePerson(family.WifeId, true));
+
+        foreach (var childId in family.Children)
+        {
+            tasks.Add(HandlePerson(childId, false));
+        }
+
+        await Task.WhenAll(tasks);
         return true;
     }
+
 
     // =======================================================================================================
     public static async Task<bool> BreathFS(long famid, Tree tree)
     {
-        // Note: invalid IDs are zero not null
-        // TODO - add you solution here
+        var seenFams = new ConcurrentDictionary<long, byte>();
+        var seenPeople = new ConcurrentDictionary<long, byte>();
+        var q = new ConcurrentQueue<long>();
+        q.Enqueue(famid);
+
+        var tasks = new List<Task>();
+        var sem = new SemaphoreSlim(50);
+
+        async Task ProcessFamily(long famId)
+        {
+            if (!seenFams.TryAdd(famId, 0)) return;
+
+            var family = await SafeFetchFamily(famId);
+            if (family == null) return;
+
+            lock (treeLock)
+            {
+                tree.AddFamily(family);
+            }
+
+            async Task HandlePerson(long id, bool addParent)
+            {
+                if (id == 0 || !seenPeople.TryAdd(id, 0)) return;
+
+                var person = await SafeFetchPerson(id);
+                if (person == null) return;
+
+                lock (treeLock)
+                {
+                    tree.AddPerson(person);
+                }
+
+                if (addParent && person.ParentId != 0)
+                    q.Enqueue(person.ParentId);
+            }
+
+            tasks.Add(HandlePerson(family.HusbandId, true));
+            tasks.Add(HandlePerson(family.WifeId, true));
+            foreach (var childId in family.Children)
+                tasks.Add(HandlePerson(childId, false));
+        }
+
+        while (!q.IsEmpty || tasks.Count > 0)
+        {
+            while (q.TryDequeue(out var famId))
+            {
+                await sem.WaitAsync();
+                var task = ProcessFamily(famId).ContinueWith(t => sem.Release());
+                tasks.Add(task);
+            }
+
+            tasks.RemoveAll(t => t.IsCompleted);
+            await Task.Delay(10);
+        }
+
+        await Task.WhenAll(tasks);
         return true;
     }
 }

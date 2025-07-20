@@ -1,0 +1,26 @@
+[16:50:19.382] [DEBUG] 
+
+[16:50:19.399] [DEBUG] #############################################
+[16:50:19.401] [DEBUG] Depth First Search: 6 generations
+[16:50:19.404] [DEBUG] #############################################
+[16:50:33.361] [DEBUG] 
+[16:50:33.365] [DEBUG] total_time                  : 13.69707
+[16:50:33.366] [DEBUG] Generations                 : 6
+[16:50:33.368] [DEBUG] STATS        Retrieved | Server details
+[16:50:33.371] [DEBUG] People  :          449 |            449
+[16:50:33.373] [DEBUG] Families:           63 |             63
+[16:50:33.375] [DEBUG] API Calls                   : 514
+[16:50:33.377] [DEBUG] Max number of threads       : 10
+[16:50:33.633] [DEBUG] 
+
+[16:50:33.635] [DEBUG] #############################################
+[16:50:33.638] [DEBUG] Breath First Search: 6 generations
+[16:50:33.640] [DEBUG] #############################################
+[16:50:48.120] [DEBUG] 
+[16:50:48.122] [DEBUG] total_time                  : 14.22315
+[16:50:48.124] [DEBUG] Generations                 : 6
+[16:50:48.127] [DEBUG] STATS        Retrieved | Server details
+[16:50:48.129] [DEBUG] People  :          465 |            465
+[16:50:48.131] [DEBUG] Families:           63 |             63
+[16:50:48.133] [DEBUG] API Calls                   : 530
+[16:50:48.135] [DEBUG] Max number of threads       : 10
